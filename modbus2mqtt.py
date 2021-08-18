@@ -25,7 +25,7 @@
 # - Eclipse Paho for Python - http://www.eclipse.org/paho/clients/python/
 # - pymodbus - https://github.com/riptideio/pymodbus
 
-import argparse
+import configargparse
 import time
 import socket
 import paho.mqtt.client as mqtt
@@ -46,30 +46,31 @@ from pymodbus.client.sync import ModbusSerialClient as SerialModbusClient
 from pymodbus.client.sync import ModbusTcpClient as TCPModbusClient
 from pymodbus.transaction import ModbusRtuFramer
 
-version="0.5"
+version="0.6"
     
-parser = argparse.ArgumentParser(description='Bridge between ModBus and MQTT')
-parser.add_argument('--mqtt-host', default='localhost', help='MQTT server address. Defaults to "localhost"')
-parser.add_argument('--mqtt-port', default=None, type=int, help='Defaults to 8883 for TLS or 1883 for non-TLS')
-parser.add_argument('--mqtt-topic', default='modbus/', help='Topic prefix to be used for subscribing/publishing. Defaults to "modbus/"')
-parser.add_argument('--mqtt-user', default=None, help='Username for authentication (optional)')
-parser.add_argument('--mqtt-pass', default="", help='Password for authentication (optional)')
-parser.add_argument('--mqtt-use-tls', action='store_true', help='Use TLS')
-parser.add_argument('--mqtt-insecure', action='store_true', help='Use TLS without providing certificates')
-parser.add_argument('--mqtt-cacerts', default=None, help="Path to keychain including ")
-parser.add_argument('--mqtt-tls-version', default=None, help='TLS protocol version, can be one of tlsv1.2 tlsv1.1 or tlsv1')
-parser.add_argument('--rtu',help='pyserial URL (or port name) for RTU serial port')
-parser.add_argument('--rtu-baud', default='19200', type=int, help='Baud rate for serial port. Defaults to 19200')
-parser.add_argument('--rtu-parity', default='even', choices=['even','odd','none'], help='Parity for serial port. Defaults to even')
-parser.add_argument('--tcp', help='Act as a Modbus TCP master, connecting to host TCP')
-parser.add_argument('--tcp-port', default='502', type=int, help='Port for MODBUS TCP. Defaults to 502')
-parser.add_argument('--set-modbus-timeout',default='1',type=float, help='Response time-out for MODBUS devices')
-parser.add_argument('--config', required=True, help='Configuration file. Required!')
-parser.add_argument('--verbosity', default='3', type=int, help='Verbose level, 0=silent, 1=errors only, 2=connections, 3=mb writes, 4=all')
-parser.add_argument('--autoremove',action='store_true',help='Automatically remove poller if modbus communication has failed three times. Removed pollers can be reactivated by sending "True" or "1" to topic modbus/reset-autoremove')
-parser.add_argument('--add-to-homeassistant',action='store_true',help='Add devices to Home Assistant using Home Assistant\'s MQTT-Discovery')
-parser.add_argument('--set-loop-break',default='0.01',type=float, help='Set pause in main polling loop. Defaults to 10ms.')
-parser.add_argument('--diagnostics-rate',default='0',type=int, help='Time in seconds after which for each device diagnostics are published via mqtt. Set to sth. like 600 (= every 10 minutes) or so.')
+parser = configargparse.ArgParser(description='Bridge between ModBus and MQTT')
+parser.add_argument('--mqtt-host', env_var='MQTT_HOST', default='localhost', help='MQTT server address. Defaults to "localhost"')
+parser.add_argument('--mqtt-port', env_var='MQTT_PORT', default=None, type=int, help='Defaults to 8883 for TLS or 1883 for non-TLS')
+parser.add_argument('--mqtt-topic', env_var='MQTT_TOPIC', default='modbus/', help='Topic prefix to be used for subscribing/publishing. Defaults to "modbus/"')
+parser.add_argument('--mqtt-user', env_var='MQTT_USER', default=None, help='Username for authentication (optional)')
+parser.add_argument('--mqtt-pass', env_var='MQTT_PASS', default="", help='Password for authentication (optional)')
+parser.add_argument('--mqtt-use-tls', env_var='MQTT_USE_TLS', action='store_true', help='Use TLS')
+parser.add_argument('--mqtt-insecure', env_var='MQTT_INSECURE', action='store_true', help='Use TLS without providing certificates')
+parser.add_argument('--mqtt-cacerts', env_var='MQTT_CACERTS', default=None, help="Path to keychain including ")
+parser.add_argument('--mqtt-tls-version', env_var='MQTT_TLS_VERSION', default=None, help='TLS protocol version, can be one of tlsv1.2 tlsv1.1 or tlsv1')
+parser.add_argument('--rtu', env_var='RTU', help='pyserial URL (or port name) for RTU serial port')
+parser.add_argument('--rtu-baud', env_var='RTU_BOARD', default='19200', type=int, help='Baud rate for serial port. Defaults to 19200')
+parser.add_argument('--rtu-parity', env_var='RTU_PARITY', default='even', choices=['even','odd','none'], help='Parity for serial port. Defaults to even')
+parser.add_argument('--tcp', env_var='TCP', help='Act as a Modbus TCP master, connecting to host TCP')
+parser.add_argument('--tcp-port', env_var='TCP_PORT', default='502', type=int, help='Port for MODBUS TCP. Defaults to 502')
+parser.add_argument('--set-modbus-timeout', env_var='MODBUS_TIMEOUT', default='1', type=float, help='Response time-out for MODBUS devices')
+parser.add_argument('--config', env_var='CONFIG', required=True, help='Configuration file. Required!')
+parser.add_argument('--verbosity', env_var='VERBOSITY', default='3', type=int, help='Verbose level, 0=silent, 1=errors only, 2=connections, 3=mb writes, 4=all')
+parser.add_argument('--autoremove', env_var='AUTOREMOVE', action='store_true', help='Automatically remove poller if modbus communication has failed three times. Removed pollers can be reactivated by sending "True" or "1" to topic modbus/reset-autoremove')
+parser.add_argument('--add-to-homeassistant', env_var='ADD_TO_HOMEASSISTANT', action='store_true', help='Add devices to Home Assistant using Home Assistant\'s MQTT-Discovery')
+parser.add_argument('--always-publish', env_var='ALWAYS_PUBLISH', action='store_true', help='Publish to MQTT even if value matches the last published value')
+parser.add_argument('--set-loop-break', env_var='LOOP_BREAK', default='0.01', type=float, help='Set pause in main polling loop. Defaults to 10ms.')
+parser.add_argument('--diagnostics-rate', env_var='DIANOSTICS_RATE', default='0', type=int, help='Time in seconds after which for each device diagnostics are published via mqtt. Set to sth. like 600 (= every 10 minutes) or so.')
 
 args=parser.parse_args()
 verbosity=args.verbosity
@@ -538,7 +539,7 @@ class Reference:
         # but only after the intial connection was made.
         if mqc.initial_connection_made == True:
             val = self.dtype.combine(val)
-            if self.lastval != val:
+            if args.always_publish or self.lastval != val:
                 self.lastval = val
                 if self.scale:
                     val = val * self.scale

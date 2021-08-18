@@ -19,6 +19,7 @@ an MQTT message broker is used as the centralized message bus.
 
 Changelog
 ---------
+- version 0.6, 13. of August 2021: Add docker support and setting to publish to MQTT even when the value hasn't changed
 - version 0.5, 21. of September 2019: print error messages in case of badly configured pollers
 - version 0.4, 25. of May 2019: When writing to a device, updated states are now published immediately, if writing was successful.
 
@@ -55,6 +56,27 @@ There is still a lot of room for improvement! Especially in the realm of
 
 So be careful :-)
 
+Docker usage
+------------
+* Build the docker container
+```
+docker build --tag="modbus2mqtt" .
+```
+
+* Example for tcp slave, remote mqtt broker with credentials, and setting the flag to always publish even when last value hasn't changed
+```
+docker run -d --name="modbus2mqtt" \
+  -v testing.csv:/usr/src/app/testing.csv \
+  -v /etc/localtime:/etc/localtime:ro \
+  -e TCP=192.168.1.7 \
+  -e CONFIG=/usr/src/app/testing.csv \
+  -e MQTT_HOST=iot.eclipse.org \
+  -e MQTT_USER=username \
+  -e MQTT_PASS=password \
+  -e ALWAYS_PUBLISH=true \
+  --net=host --restart always modbus2mqtt
+```
+
 Dependencies
 ------------
 * python3
@@ -71,8 +93,8 @@ Usage
 -----
 * example for rtu and mqtt broker on localhost: python3 modbus2mqtt.py --rtu /dev/ttyS0 --rtu-baud 38400 --rtu-parity none --mqtt-host localhost  --config testing.csv
 * example for tcp slave and mqtt broker
-    on localhost: python3 modbus2mqtt.py --tcp localhost --config testing.csv
-    remotely:     python3 modbus2mqtt.py --tcp 192.168.1.7 --config example.csv --mqtt-host iot.eclipse.org
+    * on localhost: python3 modbus2mqtt.py --tcp localhost --config testing.csv
+    * remotely:     python3 modbus2mqtt.py --tcp 192.168.1.7 --config example.csv --mqtt-host iot.eclipse.org
 
      
 Configuration file
