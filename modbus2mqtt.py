@@ -40,7 +40,8 @@ import addToHomeAssistant
 from pymodbus.client.sync import ModbusSerialClient as SerialModbusClient
 from pymodbus.client.sync import ModbusTcpClient as TCPModbusClient
 
-version = "0.5"
+
+version = "0.6"
 
 parser = argparse.ArgumentParser(description='Bridge between ModBus and MQTT')
 parser.add_argument('--mqtt-host', default='localhost',
