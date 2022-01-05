@@ -68,9 +68,9 @@ docker build --tag="modbus2mqtt" .
 * Example for tcp slave, remote mqtt broker with credentials, and setting the flag to always publish even when last value hasn't changed
 ```
 docker run -d --name="modbus2mqtt" \
-  -v configuration.csv:/usr/src/app/configuration.csv \
+  -v $(pwd)/configuration.csv:/usr/src/app/configuration.csv \
   -v /etc/localtime:/etc/localtime:ro \
-  --net=host --restart always modbus2mqtt -- \
+  --net=host --restart always modbus2mqtt \
   --tcp 192.168.1.7 \
   --config /usr/src/app/configuration.csv \
   --mqtt-host iot.eclipse.org \

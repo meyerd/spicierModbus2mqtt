@@ -50,6 +50,7 @@ from pymodbus.client.sync import ModbusTcpClient as TCPModbusClient
 
 version = "0.6"
 
+
 parser = argparse.ArgumentParser(description='Bridge between ModBus and MQTT')
 parser.add_argument('--mqtt-host', default='localhost',
                     help='MQTT server address. Defaults to "localhost"')
@@ -404,14 +405,14 @@ class dataTypes:
             self.combine = self.combineString
             self.stringLength = length
             self.regAmount = int(length/2)
-        # elif conf == "int32LE":
-        #     self.parse = self.parseint32LE
-        #     self.combine = self.combineint32LE
-        #     self.regAmount = 2
-        # elif conf == "int32BE":
-        #     self.regAmount = 2
-        #     self.parse = self.parseint32BE
-        #     self.combine = self.combineint32BE
+        elif conf == "int32LE":
+            self.parse = self.parseint32LE
+            self.combine = self.combineint32LE
+            self.regAmount = 2
+        elif conf == "int32BE" or conf == "acc32":
+            self.regAmount = 2
+            self.parse = self.parseint32BE
+            self.combine = self.combineint32BE
         elif conf == "uint8LSB":
             self.regAmount = 1
             self.parse = self.parseuint8LSB
@@ -458,7 +459,7 @@ class dataTypes:
 
     def combinebool(self, val):
         try:
-            len(val)
+            # len(val)
             return bool(val[0])
         except:
             return bool(val)
@@ -485,16 +486,18 @@ class dataTypes:
         return out
 
     def parseint32LE(self, msg):
-        pass
+        return [struct.unpack('<I', msg)]
 
     def combineint32LE(self, val):
-        pass
+        out = val[0]
+        return out
 
     def parseint32BE(self, msg):
-        pass
+        return [struct.unpack('>I', msg)]
 
     def combineint32BE(self, val):
-        pass
+        out = val[0]
+        return out
 
     def parseint16(self, msg):
         try:
