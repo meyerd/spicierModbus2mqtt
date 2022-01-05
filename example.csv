@@ -36,7 +36,7 @@
 # topic: any string without spaces
 # reference: integer 0 to 65535 (This is the modbus offset and should match the poller ref)
 # rw: r, w or rw
-# data type (registers only): uint16, float32BE, float32LE, uint32BE, uint32LE, string (defaults to uint16)
+# data type (registers only): uint16, float32BE, float32LE, uint32BE, uint32LE, string, uint8LSB, uint8MSB (defaults to uint16)
 # scaling factor (registers only): a factor by which the read value is multiplied before publishing to mqtt. At the moment this only works when reading from Modbus.
 #
 # Example reference-object:
@@ -79,3 +79,10 @@ ref,counter2,1,rw,uint16
 #treat the contents of register 1 as unsigned int. (note that counter1 overlaps counter2. This is possible and may be useful)
 ref,somestring,3,rw,string6
 #registers 3, 4 and 5 as a 6 character string
+
+poll,sps,1,12289,2,holding_register,0.4
+ref,modbIO_mb2,12289,rw,uint8LSB
+ref,modbIO_mb3,12289,rw,uint8MSB
+# modbIO_mb2 in low byte, modbIO_mb3 in high byte of the word-sized register 12289
+ref,modbIO_mb4,12290,rw,uint8LSB
+ref,modbIO_mb5,12290,rw,uint8MSB

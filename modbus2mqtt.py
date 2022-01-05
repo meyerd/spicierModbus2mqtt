@@ -24,6 +24,13 @@
 # - Eclipse Paho for Python - http://www.eclipse.org/paho/clients/python/
 # - pymodbus - https://github.com/riptideio/pymodbus
 
+# Modification by MacPiper Nov 29th 2020:
+# Added new reference types uint8LSB and uint8MSB and their handlers
+# As these types are smaller than the write unit "WORD" (register size, 16bit), the 16 bit value received through modbus (combine-function) 
+# is stored to be able to calclate the whole 16bit value to be writting from the just 8 bit long value received through MQTT (parse-function).
+# For this purpose the additionol attribute rawValue was added to the class dataTypes. The attribute is used for the new types only (and may be 
+# used for additional datatypes smaller than the related register)
+
 import argparse
 import time
 import paho.mqtt.client as mqtt
@@ -387,6 +394,7 @@ class dataTypes:
             self.regAmount = 1
             self.parse = self.parseuint16
             self.combine = self.combineuint16
+            self.rawvalue = None
         elif conf.startswith("string"):
             try:
                 length = int(conf[6:9])
@@ -410,6 +418,14 @@ class dataTypes:
         #     self.regAmount = 2
         #     self.parse = self.parseint32BE
         #     self.combine = self.combineint32BE
+        elif conf == "uint8LSB":
+            self.regAmount = 1
+            self.parse = self.parseuint8LSB
+            self.combine = self.combineuint8LSB
+        elif conf == "uint8MSB":
+            self.regAmount = 1
+            self.parse = self.parseuint8MSB
+            self.combine = self.combineuint8MSB
         elif conf == "int16":
             self.regAmount = 1
             self.parse = self.parseint16
@@ -555,6 +571,44 @@ class dataTypes:
             return val[0]
         except:
             return val
+
+    def parseuint8LSB(self, msg):
+        try:
+            value = int(msg)
+            if value > 255 or value < 0:
+                value = None
+            else:
+                value += (self.rawvalue & 0xFF00)
+        except:
+            value = None
+        return value
+
+    def combineuint8LSB(self, val):
+        try:
+            # len(val)
+            self.rawvalue = val[0]
+        except:
+            self.rawvalue = val
+        return self.rawvalue & 0x00FF
+
+    def parseuint8MSB(self, msg):
+        try:
+            value = int(msg)
+            if value > 255 or value < 0:
+                value = None
+            else:
+                value = (self.rawvalue & 0x00FF) + (value << 8)
+        except:
+            value = None
+        return value
+
+    def combineuint8MSB(self, val):
+        try:
+            # len(val)
+            self.rawvalue = val[0]
+        except:
+            self.rawvalue = val
+        return self.rawvalue >> 8
 
     def parsefloat32LE(self, msg):
         try:

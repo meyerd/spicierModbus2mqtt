@@ -1,6 +1,7 @@
 spicierModbus2mqtt
 ==================
 
+Slightly modified by MacPiper <https://github.com/MacPiper>
 
 Written and (C) 2018 Max Brueggemann <mail@maxbrueggemann.de> 
 
@@ -20,6 +21,7 @@ an MQTT message broker is used as the centralized message bus.
 Changelog
 ---------
 - version 0.6, 13. of August 2021: Add docker support and setting to publish to MQTT even when the value hasn't changed
+- Nov 29th 2020 / MacPiper: Added byte reference data types uint8LSB / uint8MSB
 - version 0.5, 21. of September 2019: print error messages in case of badly configured pollers
 - version 0.4, 25. of May 2019: When writing to a device, updated states are now published immediately, if writing was successful.
 
@@ -153,10 +155,16 @@ ref,somestring,3,rw,string6
 ```
 This will poll 10 consecutive registers from Modbus slave id 1, starting at holding register 0.
 
-The last row now contains the data format. Supported values: float32BE, float32LE, uint32BE, uint32LE, uint16 (default), stringXXX with XXX being the string length in bytes.
+The last row now contains the data format. Supported values: float32BE, float32LE, uint32BE, uint32LE, uint8LSB, uint8MSB, uint16 (default), stringXXX with XXX being the string length in bytes.
 
 Note that a float32BE will of course span over two registers (0 and 1 in the above example) and that you can still define another reference object occupying the same registers. This might come in handy if you want to modify a small part of a string seperately.
 
+The data types uint8LSB and uint8MSB are assigned to low and high byte of a register of WORD size. To address both bytes of the same WORD, two references with same
+address to be defined, e.g. 
+```
+ref,modbIO_mb2,12289,rw,uint8LSB
+ref,modbIO_mb3,12289,rw,uint8MSB
+```
 
 Topics
 ------
