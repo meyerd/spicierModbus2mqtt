@@ -161,7 +161,7 @@ class Device:
         self.pollCount = 0
         self.next_due = time.clock_gettime(0)+args.diagnostics_rate
         if verbosity >= 2:
-            print('Added new device \"'+self.name+'\"')
+            print(f'Added new device "{self.name}"')
 
     def publishDiagnostics(self):
         if args.diagnostics_rate > 0:
@@ -433,6 +433,14 @@ class dataTypes:
             self.regAmount = 2
             self.parse = self.parseuint32BE
             self.combine = self.combineuint32BE
+        elif conf == "uint64LE":
+            self.regAmount = 4
+            self.parse = self.parseuint64LE
+            self.combine = self.combineuint64LE
+        elif conf == "uint64BE":
+            self.regAmount = 4
+            self.parse = self.parseuint64BE
+            self.combine = self.combineuint64BE
         elif conf == "bool":
             self.regAmount = 1
             self.parse = self.parsebool
@@ -486,14 +494,14 @@ class dataTypes:
         return out
 
     def parseint32LE(self, msg):
-        return [struct.unpack('<I', msg)]
+        return [struct.unpack('<i', msg)]
 
     def combineint32LE(self, val):
         out = val[0]
         return out
 
     def parseint32BE(self, msg):
-        return [struct.unpack('>I', msg)]
+        return [struct.unpack('>i', msg)]
 
     def combineint32BE(self, val):
         out = val[0]
@@ -552,6 +560,18 @@ class dataTypes:
     def combineuint32BE(self, val):
         out = val[0] + val[1] * 65536
         return out
+
+    def parseuint64LE(self, msg):
+        return [struct.unpack('<Q', msg)]
+
+    def combineuint64LE(self, val):
+        return val[0]
+
+    def parseuint64BE(self, msg):
+        return [struct.unpack('>Q', msg)]
+
+    def combineuint64BE(self, val):
+        return val[0]
 
     def parseuint16(self, msg):
         try:
