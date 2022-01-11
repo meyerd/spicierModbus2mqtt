@@ -207,7 +207,7 @@ class Poller:
             deviceList.append(device)
             self.device = device
         if verbosity >= 2:
-            print("Added new poller {self.topic},{self.functioncode},\
+            print(f"Added new poller {self.topic},{self.functioncode},\
 {self.dataType},{self.reference},{self.size},")
 
     def failCount(self, failed):
@@ -224,7 +224,7 @@ class Poller:
                 if args.autoremove:
                     self.disabled = True
                     if verbosity >= 1:
-                        print("Poller {self.topic} with Slave-ID \
+                        print(f"Poller {self.topic} with Slave-ID \
 {self.slaveid} disabled (functioncode: {self.functioncode}, start reference: \
 {self.reference}, size: {self.size}).")
                     # also fail all pollers with the same slave id
@@ -233,7 +233,7 @@ class Poller:
                             p.failcounter = 3
                             p.disabled = True
                             if verbosity >= 1:
-                                print("Poller {p.topic} with Slave-ID \
+                                print(f"Poller {p.topic} with Slave-ID \
 {p.slaveid} disabled (functioncode: {p.functioncode}, start reference: \
 {p.reference}, size: {p.size}).")
                 self.failcounter = 4
