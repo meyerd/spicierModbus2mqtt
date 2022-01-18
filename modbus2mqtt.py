@@ -25,11 +25,15 @@
 # - pymodbus - https://github.com/riptideio/pymodbus
 
 # Modification by MacPiper Nov 29th 2020:
-# Added new reference types uint8LSB and uint8MSB and their handlers
-# As these types are smaller than the write unit "WORD" (register size, 16bit), the 16 bit value received through modbus (combine-function) 
-# is stored to be able to calclate the whole 16bit value to be writting from the just 8 bit long value received through MQTT (parse-function).
-# For this purpose the additionol attribute rawValue was added to the class dataTypes. The attribute is used for the new types only (and may be 
-# used for additional datatypes smaller than the related register)
+# - Added new reference types uint8LSB and uint8MSB and their handlers
+#   As these types are smaller than the write unit "WORD"
+#   (register size, 16bit), the 16 bit value received through modbus
+#   (combine-function) is stored to be able to calclate the whole
+#   16bit value to be writting from the just 8 bit long value received
+#   through MQTT (parse-function). For this purpose the additionol attribute
+#   rawValue was added to the class dataTypes. The attribute is used for
+#   the new types only (and may be used for additional datatypes smaller
+#   than the related register)
 
 import argparse
 import time
@@ -300,16 +304,26 @@ SI:{self.slaveid}")
                     for ref in self.readableReferences:
                         val = data[ref.relativeReference:(ref.length +
                                    ref.relativeReference)]
-                        ref.checkPublish(val)
+                        try:
+                            ref.checkPublish(val)
+                        except Exception as e:
+                            if verbosity >= 1:
+                                print(f"Check publish for {ref.topic} failed \
+with exception: {e}")
+                            if verbosity >= 4:
+                                print(f"value parsed: {val}")
+                            continue
                 else:
                     if verbosity >= 1:
                         print(f"Slave device {self.slaveid} responded with \
 error code: {result.function_code}")
-            except:
+            except Exception as e:
                 failed = True
                 if verbosity >= 1:
                     print(f"Error talking to slave device:{self.slaveid} \
 (connection timeout)")
+                if verbosity >= 4:
+                    print(f"\t exception: {e}")
 
             self.failCount(failed)
         else:
@@ -467,7 +481,6 @@ class dataTypes:
 
     def combinebool(self, val):
         try:
-            # len(val)
             return bool(val[0])
         except:
             return bool(val)
@@ -490,21 +503,22 @@ class dataTypes:
         for x in val:
             out += chr(x >> 8)
             out += chr(x & 0x00FF)
-            # print(val)
         return out
 
     def parseint32LE(self, msg):
-        return [struct.unpack('<i', msg)]
+        return struct.pack('<i', msg)
 
     def combineint32LE(self, val):
-        out = val[0]
+        out = str(struct.unpack('=i',
+                  struct.pack('=i', int(val[0]) << 16 | int(val[1])))[0])
         return out
 
     def parseint32BE(self, msg):
-        return [struct.unpack('>i', msg)]
+        return struct.pack('>i', msg)
 
     def combineint32BE(self, val):
-        out = val[0]
+        out = str(struct.unpack('=i',
+                  struct.pack('=i', int(val[1]) << 16 | int(val[0])))[0])
         return out
 
     def parseint16(self, msg):
@@ -520,7 +534,6 @@ class dataTypes:
 
     def combineint16(self, val):
         try:
-            # len(val)
             myval = val[0]
         except:
             myval = val
@@ -562,16 +575,22 @@ class dataTypes:
         return out
 
     def parseuint64LE(self, msg):
-        return [struct.unpack('<Q', msg)]
+        return struct.pack('<Q', msg)
 
     def combineuint64LE(self, val):
-        return val[0]
+        out = str(struct.unpack('=Q',
+                  struct.pack('=Q', int(val[0]) << 32 | int(val[1]) << 24 |
+                                    int(val[2]) << 16 | int(val[3])))[0])
+        return out
 
     def parseuint64BE(self, msg):
-        return [struct.unpack('>Q', msg)]
+        return struct.pack('>Q', msg)
 
     def combineuint64BE(self, val):
-        return val[0]
+        out = str(struct.unpack('=Q',
+                  struct.pack('=Q', int(val[3]) << 32 | int(val[2]) << 24 |
+                                    int(val[1]) << 16 | int(val[0])))[0])
+        return out
 
     def parseuint16(self, msg):
         try:
@@ -584,7 +603,6 @@ class dataTypes:
 
     def combineuint16(self, val):
         try:
-            # len(val)
             return val[0]
         except:
             return val
@@ -602,7 +620,6 @@ class dataTypes:
 
     def combineuint8LSB(self, val):
         try:
-            # len(val)
             self.rawvalue = val[0]
         except:
             self.rawvalue = val
@@ -621,7 +638,6 @@ class dataTypes:
 
     def combineuint8MSB(self, val):
         try:
-            # len(val)
             self.rawvalue = val[0]
         except:
             self.rawvalue = val
@@ -629,7 +645,7 @@ class dataTypes:
 
     def parsefloat32LE(self, msg):
         try:
-            out = None
+            out = struct.pack('<f', msg)
             # value=int(msg)
             # if value > 4294967295 or value < 0:
             #     out = None
@@ -641,24 +657,16 @@ class dataTypes:
 
     def combinefloat32LE(self, val):
         out = str(struct.unpack('=f',
-                  struct.pack('=i', int(val[0]) << 16 | int(val[1])))[0])
+                  struct.pack('=I', int(val[0]) << 16 | int(val[1])))[0])
         return out
 
     def parsefloat32BE(self, msg):
-        try:
-            out = None
-            # value=int(msg)
-            # if value > 4294967295 or value < 0:
-            #    out = None
-            # else:
-            #    out = [int(value & 0x0000FFFF), int(value >> 16)]
-        except:
-            out = None
+        out = struct.pack('>f', msg)
         return out
 
     def combinefloat32BE(self, val):
         out = str(struct.unpack('=f',
-                  struct.pack('=i', int(val[1]) << 16 | int(val[0])))[0])
+                  struct.pack('=I', int(val[1]) << 16 | int(val[0])))[0])
         return out
 
 
