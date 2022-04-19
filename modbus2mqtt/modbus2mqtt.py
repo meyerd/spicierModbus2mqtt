@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# 
 # spicierModbus2mqtt - Modbus TCP/RTU to MQTT bridge (and vice versa)
 # https://github.com/mbs38/spicierModbus2mqtt
 #
@@ -36,14 +38,9 @@
 #   the new types only (and may be used for additional datatypes smaller
 #   than the related register)
 
-#!/usr/bin/env python
-
 import argparse
 import time
-import socket
 import paho.mqtt.client as mqtt
-import serial
-import io
 import sys
 import csv
 import signal
@@ -973,6 +970,7 @@ def main():
                     print(f'No poller for reference {row["topic"]}.')
 
     # Setup MODBUS Master
+    global master
     if args.rtu:
         if args.rtu_parity == "none":
             parity = "N"
@@ -990,7 +988,7 @@ def main():
                                 clean_session=False)
     else:
         print("You must specify a modbus access method, either --rtu or --tcp")
-        sys.exit(1)
+        return 1
     
     # Setup MQTT Broker
     global mqtt_port
@@ -1043,7 +1041,7 @@ def main():
 
     if len(pollers) < 1:
         print("No pollers. Exitting.")
-        sys.exit(0)
+        return 0
     
 
     # Main Loop
@@ -1075,15 +1073,16 @@ def main():
                 mqc.loop_start()
                 # Setup HomeAssistant
                 if(addToHass):
-                    adder = addToHomeAssistant.HassConnector(mqc, globaltopic,
-                                                         verbosity >= 1)
-                adder.addAll(referenceList)
+                    adder = HassConnector(mqc, globaltopic, verbosity >= 1)
+                    adder.addAll(referenceList)
                 if verbosity >= 1:
                     print("MQTT Loop started")
-           except:
+           except Exception as e:
                 if verbosity >= 1:
                     print(f"Socket Error connecting to MQTT broker: \
 {args.mqtt_host}:{mqtt_port}, check LAN/Internet connection, trying again ...")
+                if verbosity >= 4:
+                    print(f"Connect exception: {e}")
 
         # Don't start polling unless the initial connection to MQTT has been made,
         # no offline MQTT storage will be available until then.
@@ -1117,4 +1116,4 @@ again...")
     
     master.close()
     # adder.removeAll(referenceList)
-    sys.exit(1)
+    return 1
