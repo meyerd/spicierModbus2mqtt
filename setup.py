@@ -11,8 +11,8 @@ version = re.search(
 
 # for some stupid reason we need restructured text here.
 # For now I'll stick with markdown..
-#with open("README.md", "rb") as f:
-#    long_descr = f.read().decode("utf-8")
+# with open("README.md", "rb") as f:
+#     long_descr = f.read().decode("utf-8")
 long_descr = ""
 
 setup(
