@@ -373,7 +373,10 @@ therefore ignoring it for polling.")
                 if "w" in myRef.rw:
                     # holding registers
                     if self.functioncode == 3:
-                        myRef.writefunctioncode = 6  # preset single register
+                        if myRef.dtype.regAmount > 1:
+                            myRef.writefunctioncode = 16  # multiple registers for 32/64 bit
+                        else:
+                            myRef.writefunctioncode = 6  # preset single register
                     # coils
                     if self.functioncode == 1:
                         myRef.writefunctioncode = 5  # force single coil
@@ -506,6 +509,7 @@ class dataTypes:
         return out
 
     def parseint32LE(self, msg):
+        # TODO: parse should return array of byte values
         return struct.pack('<i', msg)
 
     def combineint32LE(self, val):
@@ -514,6 +518,7 @@ class dataTypes:
         return out
 
     def parseint32BE(self, msg):
+        # TODO: parse should return array of byte values
         return struct.pack('>i', msg)
 
     def combineint32BE(self, val):
@@ -823,7 +828,13 @@ is not enabled. Check flags.")
 Slave-ID {p.slaveid} and functioncode {p.functioncode}.")
 
         return
-    (prefix, device, function, reference) = msg.topic.split("/")
+    if verbosity >= 4: 
+        print(f"set topic: {msg.topic}")
+    split_topic = msg.topic.split("/")
+    if len(split_topic) < 3:
+        print(f"split set topic invalid: {split_topic}")
+        return
+    (device, function, reference) = split_topic[-3:]
     if function != 'set':
         return
     myRef = None
@@ -871,7 +882,7 @@ Slave-ID={myDevice.slaveid} at Reference={myRef.reference} using function \
 code {myRef.writefunctioncode} not possible. Given value is not \"True\" \
 or \"False\".")
 
-    if myRef.writefunctioncode == 6:
+    if myRef.writefunctioncode == 6 or myRef.writefunctioncode == 16:
         value = myRef.dtype.parse(str(payload))
         if value is not None:
             result = master.write_registers(int(myRef.reference),
