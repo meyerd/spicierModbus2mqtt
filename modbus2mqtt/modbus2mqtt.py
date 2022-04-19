@@ -829,9 +829,7 @@ def connecthandler(mqc, userdata, flags, rc):
     if rc == 0:
         mqc.initial_connection_made = True
         if verbosity >= 2:
-            print(
-                f"MQTT Broker connected succesfully: {args.mqtt_host}:{mqtt_port}"
-            )
+            print(f"MQTT Broker connected succesfully: {args.mqtt_host}:{mqtt_port}")
         mqc.subscribe(globaltopic + "+/set/+")
         mqc.subscribe(globaltopic + "reset-autoremove")
         if verbosity >= 2:
@@ -982,9 +980,7 @@ def main():
     loopBreak = args.set_loop_break
     if loopBreak == 0:
         loopBreak = 0.01
-        print(
-            "ERROR: Loop break must not be 0! Using default value (0.01) instead."
-        )
+        print("ERROR: Loop break must not be 0! Using default value (0.01) instead.")
     addToHass = False
     addToHass = args.add_to_homeassistant
 
@@ -1188,9 +1184,7 @@ def main():
 
         if not mqc.initial_connection_attempted:
             try:
-                print(
-                    f"Connecting to MQTT Broker: {args.mqtt_host}:{mqtt_port} ..."
-                )
+                print(f"Connecting to MQTT Broker: {args.mqtt_host}:{mqtt_port} ...")
                 mqc.connect(args.mqtt_host, mqtt_port, 60)
                 # Once we have connected the mqc loop
                 # will take care of reconnections.
