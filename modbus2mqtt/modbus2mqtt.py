@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-# 
+#
 # spicierModbus2mqtt - Modbus TCP/RTU to MQTT bridge (and vice versa)
 # https://github.com/mbs38/spicierModbus2mqtt
 #
 # Written in 2018 by Max Brueggemann <mail@maxbrueggemann.de>
-#  
+#
 #
 # Provided under the terms of the MIT license.
 
@@ -70,6 +70,7 @@ referenceList = []
 master = None
 control = None
 
+
 class Control:
     def __init__(self):
         self.runLoop = True
@@ -77,10 +78,12 @@ class Control:
     def stopLoop(self):
         self.runLoop = False
 
+
 def signal_handler(signal, frame):
-        global control
-        print('Exiting ' + sys.argv[0])
-        control.stopLoop()
+    global control
+    print("Exiting " + sys.argv[0])
+    control.stopLoop()
+
 
 class Device:
     def __init__(self, name, slaveid):
@@ -90,7 +93,7 @@ class Device:
         self.slaveid = slaveid
         self.errorCount = 0
         self.pollCount = 0
-        self.next_due = time.clock_gettime(0)+args.diagnostics_rate
+        self.next_due = time.clock_gettime(0) + args.diagnostics_rate
         if verbosity >= 2:
             print(f'Added new device "{self.name}"')
 
@@ -107,12 +110,20 @@ class Device:
                     error = 100
                 if mqc.initial_connection_made is True:
                     try:
-                        mqc.publish(globaltopic + self.name +
-                                    "/state/diagnostics_errors_percent",
-                                    str(error), qos=1, retain=True)
-                        mqc.publish(globaltopic + self.name +
-                                    "/state/diagnostics_errors_total",
-                                    str(self.errorCount), qos=1, retain=True)
+                        mqc.publish(
+                            globaltopic
+                            + self.name
+                            + "/state/diagnostics_errors_percent",
+                            str(error),
+                            qos=1,
+                            retain=True,
+                        )
+                        mqc.publish(
+                            globaltopic + self.name + "/state/diagnostics_errors_total",
+                            str(self.errorCount),
+                            qos=1,
+                            retain=True,
+                        )
                     except:
                         pass
                 self.pollCount = 0
@@ -120,8 +131,7 @@ class Device:
 
 
 class Poller:
-    def __init__(self, topic, rate, slaveid, functioncode, reference, size,
-                 dataType):
+    def __init__(self, topic, rate, slaveid, functioncode, reference, size, dataType):
         self.topic = topic
         self.rate = float(rate)
         self.slaveid = int(slaveid)
@@ -129,8 +139,7 @@ class Poller:
         self.dataType = dataType
         self.reference = int(reference)
         self.size = int(size)
-        self.next_due = time.clock_gettime(0) + self.rate * \
-            random.uniform(0, 1)
+        self.next_due = time.clock_gettime(0) + self.rate * random.uniform(0, 1)
         self.last = None
         self.readableReferences = []
         self.device = None
@@ -147,8 +156,10 @@ class Poller:
             deviceList.append(device)
             self.device = device
         if verbosity >= 2:
-            print(f"Added new poller {self.topic},{self.functioncode},\
-{self.dataType},{self.reference},{self.size},")
+            print(
+                f"Added new poller {self.topic},{self.functioncode},\
+{self.dataType},{self.reference},{self.size},"
+            )
 
     def failCount(self, failed):
         self.device.pollCount += 1
@@ -156,30 +167,36 @@ class Poller:
             self.failcounter = 0
             if not self.connected:
                 self.connected = True
-                mqc.publish(globaltopic + self.topic + "/connected", "True",
-                            qos=1, retain=True)
+                mqc.publish(
+                    globaltopic + self.topic + "/connected", "True", qos=1, retain=True
+                )
         else:
             self.device.errorCount += 1
             if self.failcounter == 3:
                 if args.autoremove:
                     self.disabled = True
                     if verbosity >= 1:
-                        print(f"Poller {self.topic} with Slave-ID \
+                        print(
+                            f"Poller {self.topic} with Slave-ID \
 {self.slaveid} disabled (functioncode: {self.functioncode}, start reference: \
-{self.reference}, size: {self.size}).")
+{self.reference}, size: {self.size})."
+                        )
                     # also fail all pollers with the same slave id
                     for p in pollers:
                         if p.slaveid == self.slaveid:
                             p.failcounter = 3
                             p.disabled = True
                             if verbosity >= 1:
-                                print(f"Poller {p.topic} with Slave-ID \
+                                print(
+                                    f"Poller {p.topic} with Slave-ID \
 {p.slaveid} disabled (functioncode: {p.functioncode}, start reference: \
-{p.reference}, size: {p.size}).")
+{p.reference}, size: {p.size})."
+                                )
                 self.failcounter = 4
                 self.connected = False
-                mqc.publish(globaltopic + self.topic + "/connected", "False",
-                            qos=1, retain=True)
+                mqc.publish(
+                    globaltopic + self.topic + "/connected", "False", qos=1, retain=True
+                )
             else:
                 if self.failcounter < 3:
                     self.failcounter += 1
@@ -190,53 +207,58 @@ class Poller:
             failed = False
             try:
                 if self.functioncode == 3:
-                    result = master.read_holding_registers(self.reference,
-                                                           self.size,
-                                                           unit=self.slaveid)
+                    result = master.read_holding_registers(
+                        self.reference, self.size, unit=self.slaveid
+                    )
                     if result.function_code < 0x80:
                         data = result.registers
                     else:
                         failed = True
                 if self.functioncode == 1:
-                    result = master.read_coils(self.reference,
-                                               self.size,
-                                               unit=self.slaveid)
+                    result = master.read_coils(
+                        self.reference, self.size, unit=self.slaveid
+                    )
                     if result.function_code < 0x80:
                         data = result.bits
                     else:
                         failed = True
 
                 if self.functioncode == 2:
-                    result = master.read_discrete_inputs(self.reference,
-                                                         self.size,
-                                                         unit=self.slaveid)
+                    result = master.read_discrete_inputs(
+                        self.reference, self.size, unit=self.slaveid
+                    )
                     if result.function_code < 0x80:
                         data = result.bits
                     else:
                         failed = True
                 if self.functioncode == 4:
-                    result = master.read_input_registers(self.reference,
-                                                         self.size,
-                                                         unit=self.slaveid)
+                    result = master.read_input_registers(
+                        self.reference, self.size, unit=self.slaveid
+                    )
                     if result.function_code < 0x80:
                         data = result.registers
                     else:
                         failed = True
                 if not failed:
                     if verbosity >= 4:
-                        print(f"Read MODBUS, FC:{self.functioncode}, \
+                        print(
+                            f"Read MODBUS, FC:{self.functioncode}, \
 DataType:{self.dataType}, ref:{self.reference}, Qty:{self.size}, \
-SI:{self.slaveid}")
+SI:{self.slaveid}"
+                        )
                         print(f"Read MODBUS, DATA:{data}")
                     for ref in self.readableReferences:
-                        val = data[ref.relativeReference:(ref.length +
-                                   ref.relativeReference)]
+                        val = data[
+                            ref.relativeReference : (ref.length + ref.relativeReference)
+                        ]
                         try:
                             ref.checkPublish(val)
                         except Exception as e:
                             if verbosity >= 1:
-                                print(f"Check publish for {ref.topic} failed \
-with exception: {e}")
+                                print(
+                                    f"Check publish for {ref.topic} failed \
+with exception: {e}"
+                                )
                             if verbosity >= 4:
                                 print(f"value parsed: {val}")
                             continue
@@ -247,13 +269,17 @@ with exception: {e}")
                             p.failcounter = 3
                         p.failCount(p.failed)
                     if verbosity >= 1:
-                        print(f"Slave device {self.slaveid} responded with \
-error code: {result.function_code}")
+                        print(
+                            f"Slave device {self.slaveid} responded with \
+error code: {result.function_code}"
+                        )
             except Exception as e:
                 failed = True
                 if verbosity >= 1:
-                    print(f"Error talking to slave device:{self.slaveid} \
-(connection timeout)")
+                    print(
+                        f"Error talking to slave device:{self.slaveid} \
+(connection timeout)"
+                    )
                 if verbosity >= 4:
                     print(f"\t exception: {e}")
 
@@ -291,22 +317,26 @@ error code: {result.function_code}")
             if "r" in myRef.rw or "w" in myRef.rw:
                 myRef.device = self.device
                 if verbosity >= 2:
-                    print(f"Added new reference \"{myRef.topic}\"")
+                    print(f'Added new reference "{myRef.topic}"')
                 if "r" in myRef.rw:
                     if myRef.checkSanity(self.reference, self.size):
                         self.readableReferences.append(myRef)
                         if "w" not in myRef.rw:
                             referenceList.append(myRef)
                     else:
-                        print(f"Reference \"{myRef.reference}\" with topic \
+                        print(
+                            f'Reference "{myRef.reference}" with topic \
 {myRef.topic} is not in range ({self.reference} to \
-{str(int(self.reference+self.size-1))} of poller \"{self.topic}\", \
-therefore ignoring it for polling.")
+{str(int(self.reference+self.size-1))} of poller "{self.topic}", \
+therefore ignoring it for polling.'
+                        )
                 if "w" in myRef.rw:
                     # holding registers
                     if self.functioncode == 3:
                         if myRef.dtype.regAmount > 1:
-                            myRef.writefunctioncode = 16  # multiple registers for 32/64 bit
+                            myRef.writefunctioncode = (
+                                16  # multiple registers for 32/64 bit
+                            )
                         else:
                             myRef.writefunctioncode = 6  # preset single register
                     # coils
@@ -314,22 +344,30 @@ therefore ignoring it for polling.")
                         myRef.writefunctioncode = 5  # force single coil
                     # read input status, not writable
                     if self.functioncode == 2:
-                        print(f"Reference \"{myRef.reference}\" with topic \
-{myRef.topic} in poller \"{self.topic}\" is not writable (discrete input)")
+                        print(
+                            f'Reference "{myRef.reference}" with topic \
+{myRef.topic} in poller "{self.topic}" is not writable (discrete input)'
+                        )
                     # read input register, not writable
                     if self.functioncode == 4:
-                        print(f"Reference \"{myRef.reference}\" with topic \
-{myRef.topic} in poller \"{self.topic}\" is not writable (input register)")
+                        print(
+                            f'Reference "{myRef.reference}" with topic \
+{myRef.topic} in poller "{self.topic}" is not writable (input register)'
+                        )
                     if myRef.writefunctioncode is not None:
                         self.device.writableReferences.append(myRef)
                         referenceList.append(myRef)
             else:
-                print(f"Reference \"{myRef.reference}\" with topic \
-{myRef.topic} in poller \"{self.topic}\" is neither read nor \
-writable, therefore ignoring it.")
+                print(
+                    f'Reference "{myRef.reference}" with topic \
+{myRef.topic} in poller "{self.topic}" is neither read nor \
+writable, therefore ignoring it.'
+                )
         else:
-            print(f"Reference topic ({myRef.topic}) is already occupied for \
-poller \"{self.topic}\", therefore ignoring it.")
+            print(
+                f'Reference topic ({myRef.topic}) is already occupied for \
+poller "{self.topic}", therefore ignoring it.'
+            )
 
 
 class dataTypes:
@@ -348,12 +386,12 @@ class dataTypes:
                 print("Data type string: length too long")
                 length = 100
             if math.fmod(length, 2) != 0:
-                length = length-1
+                length = length - 1
                 print("Data type string: length must be divisible by 2")
             self.parse = self.parseString
             self.combine = self.combineString
             self.stringLength = length
-            self.regAmount = int(length/2)
+            self.regAmount = int(length / 2)
         elif conf == "int32LE":
             self.parse = self.parseint32LE
             self.combine = self.combineint32LE
@@ -404,11 +442,19 @@ class dataTypes:
             self.combine = self.combinefloat32BE
 
     def parsebool(self, payload):
-        if payload == 'True' or payload == 'true' or \
-                payload == '1' or payload == 'TRUE':
+        if (
+            payload == "True"
+            or payload == "true"
+            or payload == "1"
+            or payload == "TRUE"
+        ):
             value = True
-        elif payload == 'False' or payload == 'false' or \
-                payload == '0' or payload == 'FALSE':
+        elif (
+            payload == "False"
+            or payload == "false"
+            or payload == "0"
+            or payload == "FALSE"
+        ):
             value = False
         else:
             value = None
@@ -423,12 +469,12 @@ class dataTypes:
     def parseString(self, msg):
         out = []
         if len(msg) <= self.stringLength:
-            for x in range(1, len(msg)+1):
+            for x in range(1, len(msg) + 1):
                 if math.fmod(x, 2) > 0:
-                    out.append(ord(msg[x-1]) << 8)
+                    out.append(ord(msg[x - 1]) << 8)
                 else:
                     pass
-                    out[int(x/2-1)] += ord(msg[x-1])
+                    out[int(x / 2 - 1)] += ord(msg[x - 1])
         else:
             out = None
         return out
@@ -442,20 +488,22 @@ class dataTypes:
 
     def parseint32LE(self, msg):
         # TODO: parse should return array of byte values
-        return struct.pack('<i', msg)
+        return struct.pack("<i", msg)
 
     def combineint32LE(self, val):
-        out = str(struct.unpack('=i',
-                  struct.pack('=i', int(val[0]) << 16 | int(val[1])))[0])
+        out = str(
+            struct.unpack("=i", struct.pack("=i", int(val[0]) << 16 | int(val[1])))[0]
+        )
         return out
 
     def parseint32BE(self, msg):
         # TODO: parse should return array of byte values
-        return struct.pack('>i', msg)
+        return struct.pack(">i", msg)
 
     def combineint32BE(self, val):
-        out = str(struct.unpack('=i',
-                  struct.pack('=i', int(val[1]) << 16 | int(val[0])))[0])
+        out = str(
+            struct.unpack("=i", struct.pack("=i", int(val[1]) << 16 | int(val[0])))[0]
+        )
         return out
 
     def parseint16(self, msg):
@@ -476,7 +524,7 @@ class dataTypes:
             myval = val
 
         if (myval & 0x8000) > 0:
-            out = -((~myval & 0x7FFF)+1)
+            out = -((~myval & 0x7FFF) + 1)
         else:
             out = myval
         return out
@@ -512,21 +560,39 @@ class dataTypes:
         return out
 
     def parseuint64LE(self, msg):
-        return struct.pack('<Q', msg)
+        return struct.pack("<Q", msg)
 
     def combineuint64LE(self, val):
-        out = str(struct.unpack('=Q',
-                  struct.pack('=Q', int(val[0]) << 32 | int(val[1]) << 24 |
-                                    int(val[2]) << 16 | int(val[3])))[0])
+        out = str(
+            struct.unpack(
+                "=Q",
+                struct.pack(
+                    "=Q",
+                    int(val[0]) << 32
+                    | int(val[1]) << 24
+                    | int(val[2]) << 16
+                    | int(val[3]),
+                ),
+            )[0]
+        )
         return out
 
     def parseuint64BE(self, msg):
-        return struct.pack('>Q', msg)
+        return struct.pack(">Q", msg)
 
     def combineuint64BE(self, val):
-        out = str(struct.unpack('=Q',
-                  struct.pack('=Q', int(val[3]) << 32 | int(val[2]) << 24 |
-                                    int(val[1]) << 16 | int(val[0])))[0])
+        out = str(
+            struct.unpack(
+                "=Q",
+                struct.pack(
+                    "=Q",
+                    int(val[3]) << 32
+                    | int(val[2]) << 24
+                    | int(val[1]) << 16
+                    | int(val[0]),
+                ),
+            )[0]
+        )
         return out
 
     def parseuint16(self, msg):
@@ -550,7 +616,7 @@ class dataTypes:
             if value > 255 or value < 0:
                 value = None
             else:
-                value += (self.rawvalue & 0xFF00)
+                value += self.rawvalue & 0xFF00
         except:
             value = None
         return value
@@ -582,7 +648,7 @@ class dataTypes:
 
     def parsefloat32LE(self, msg):
         try:
-            out = struct.pack('<f', msg)
+            out = struct.pack("<f", msg)
             # value=int(msg)
             # if value > 4294967295 or value < 0:
             #     out = None
@@ -593,17 +659,19 @@ class dataTypes:
         return out
 
     def combinefloat32LE(self, val):
-        out = str(struct.unpack('=f',
-                  struct.pack('=I', int(val[0]) << 16 | int(val[1])))[0])
+        out = str(
+            struct.unpack("=f", struct.pack("=I", int(val[0]) << 16 | int(val[1])))[0]
+        )
         return out
 
     def parsefloat32BE(self, msg):
-        out = struct.pack('>f', msg)
+        out = struct.pack(">f", msg)
         return out
 
     def combinefloat32BE(self, val):
-        out = str(struct.unpack('=f',
-                  struct.pack('=I', int(val[1]) << 16 | int(val[0])))[0])
+        out = str(
+            struct.unpack("=f", struct.pack("=I", int(val[1]) << 16 | int(val[0])))[0]
+        )
         return out
 
 
@@ -634,10 +702,10 @@ class Reference:
         self.length = self.dtype.regAmount
 
     def checkSanity(self, reference, size):
-        if self.reference in range(reference, size + reference) and \
-           self.reference + self.length - 1 in \
-           range(reference, size + reference):
-            self.relativeReference = self.reference-reference
+        if self.reference in range(
+            reference, size + reference
+        ) and self.reference + self.length - 1 in range(reference, size + reference):
+            self.relativeReference = self.reference - reference
             return True
 
     def checkPublish(self, val):
@@ -651,47 +719,58 @@ class Reference:
                 if self.scale:
                     val = val * self.scale
                 try:
-                    publish_result = mqc.publish(globaltopic +
-                                                 self.device.name +
-                                                 "/state/" + self.topic,
-                                                 val, retain=True)
+                    publish_result = mqc.publish(
+                        globaltopic + self.device.name + "/state/" + self.topic,
+                        val,
+                        retain=True,
+                    )
                     if verbosity >= 4:
-                        print(f"published MQTT topic: {self.device.name}/state/\
-{self.topic} value: {self.lastval} RC: {publish_result.rc}")
+                        print(
+                            f"published MQTT topic: {self.device.name}/state/\
+{self.topic} value: {self.lastval} RC: {publish_result.rc}"
+                        )
                 except:
                     if verbosity >= 1:
-                        print(f"Error publishing MQTT topic: {self.device.name}\
-/state/{self.topic} value: {self.lastval}")
+                        print(
+                            f"Error publishing MQTT topic: {self.device.name}\
+/state/{self.topic} value: {self.lastval}"
+                        )
 
 
 def messagehandler(mqc, userdata, msg):
     if str(msg.topic) == globaltopic + "reset-autoremove":
         if not args.autoremove and verbosity >= 1:
-            print("ERROR: Received autoremove-reset command but autoremove \
-is not enabled. Check flags.")
+            print(
+                "ERROR: Received autoremove-reset command but autoremove \
+is not enabled. Check flags."
+            )
         if args.autoremove:
             payload = str(msg.payload.decode("utf-8"))
             if payload == "True" or payload == "1":
                 if verbosity >= 1:
-                    print("Reactivating previously disabled pollers \
-(command from MQTT)")
+                    print(
+                        "Reactivating previously disabled pollers \
+(command from MQTT)"
+                    )
                 for p in pollers:
                     if p.disabled is True:
                         p.disabled = False
                         p.failcounter = 0
                         if verbosity >= 1:
-                            print(f"Reactivated poller {p.topic} with \
-Slave-ID {p.slaveid} and functioncode {p.functioncode}.")
+                            print(
+                                f"Reactivated poller {p.topic} with \
+Slave-ID {p.slaveid} and functioncode {p.functioncode}."
+                            )
 
         return
-    if verbosity >= 4: 
+    if verbosity >= 4:
         print(f"set topic: {msg.topic}")
     split_topic = msg.topic.split("/")
     if len(split_topic) < 3:
         print(f"split set topic invalid: {split_topic}")
         return
     (device, function, reference) = split_topic[-3:]
-    if function != 'set':
+    if function != "set":
         return
     myRef = None
     myDevice = None
@@ -709,74 +788,92 @@ Slave-ID {p.slaveid} and functioncode {p.functioncode}.")
     if myRef.writefunctioncode == 5:
         value = myRef.dtype.parse(str(payload))
         if value is not None:
-            result = master.write_coil(int(myRef.reference),
-                                       value,
-                                       unit=int(myRef.device.slaveid))
+            result = master.write_coil(
+                int(myRef.reference), value, unit=int(myRef.device.slaveid)
+            )
             try:
                 if result.function_code < 0x80:
                     # writing was successful => we can assume, that
                     # the corresponding state can be set and published
                     myRef.checkPublish(value)
                     if verbosity >= 3:
-                        print(f"Writing to device {myDevice.name}, \
+                        print(
+                            f"Writing to device {myDevice.name}, \
 Slave-ID={myDevice.slaveid} at Reference={myRef.reference} using function \
-code {myRef.writefunctioncode} successful.")
+code {myRef.writefunctioncode} successful."
+                        )
                 else:
                     if verbosity >= 1:
-                        print(f"Writing to device {myDevice.name}, \
+                        print(
+                            f"Writing to device {myDevice.name}, \
 Slave-ID={myDevice.slaveid} at Reference={myRef.reference} using \
 function code {myRef.writefunctioncode} FAILED! \
-(Devices responded with errorcode. Maybe bad configuration?)")
+(Devices responded with errorcode. Maybe bad configuration?)"
+                        )
             except:
                 if verbosity >= 1:
-                    print(f"Error writing to slave device {myDevice.slaveid} \
-(maybe CRC error or timeout)")
+                    print(
+                        f"Error writing to slave device {myDevice.slaveid} \
+(maybe CRC error or timeout)"
+                    )
         else:
             if verbosity >= 1:
-                print(f"Writing to device {myDevice.name}, \
+                print(
+                    f'Writing to device {myDevice.name}, \
 Slave-ID={myDevice.slaveid} at Reference={myRef.reference} using function \
-code {myRef.writefunctioncode} not possible. Given value is not \"True\" \
-or \"False\".")
+code {myRef.writefunctioncode} not possible. Given value is not "True" \
+or "False".'
+                )
 
     if myRef.writefunctioncode == 6 or myRef.writefunctioncode == 16:
         value = myRef.dtype.parse(str(payload))
         if value is not None:
-            result = master.write_registers(int(myRef.reference),
-                                            value,
-                                            unit=myRef.device.slaveid)
+            result = master.write_registers(
+                int(myRef.reference), value, unit=myRef.device.slaveid
+            )
             try:
                 if result.function_code < 0x80:
                     # writing was successful => we can assume, that
                     # the corresponding state can be set and published
                     myRef.checkPublish(value)
                     if verbosity >= 3:
-                        print(f"Writing to device {myDevice.name}, \
+                        print(
+                            f"Writing to device {myDevice.name}, \
 Slave-ID={myDevice.slaveid} at Reference={myRef.reference} using \
-function code {myRef.writefunctioncode} successful.")
+function code {myRef.writefunctioncode} successful."
+                        )
                 else:
                     if verbosity >= 1:
-                        print(f"Writing to device {myDevice.name}, \
+                        print(
+                            f"Writing to device {myDevice.name}, \
 Slave-ID={myDevice.slaveid} at Reference={myRef.reference} using \
 function code {myRef.writefunctioncode} FAILED! (Devices responded \
-with errorcode. Maybe bad configuration?)")
+with errorcode. Maybe bad configuration?)"
+                        )
             except:
                 if verbosity >= 1:
-                    print(f"Error writing to slave device {myDevice.slaveid} \
-(maybe CRC error or timeout)")
+                    print(
+                        f"Error writing to slave device {myDevice.slaveid} \
+(maybe CRC error or timeout)"
+                    )
         else:
             if verbosity >= 1:
-                print(f"Writing to device {myDevice.name}, \
+                print(
+                    f"Writing to device {myDevice.name}, \
 Slave-ID={myDevice.slaveid} at Reference={myRef.reference} using \
 function code {myRef.writefunctioncode} not possible. Value does \
-not fulfill criteria.")
+not fulfill criteria."
+                )
 
 
 def connecthandler(mqc, userdata, flags, rc):
     if rc == 0:
         mqc.initial_connection_made = True
         if verbosity >= 2:
-            print(f"MQTT Broker connected succesfully: \
-{args.mqtt_host}:{mqtt_port}")
+            print(
+                f"MQTT Broker connected succesfully: \
+{args.mqtt_host}:{mqtt_port}"
+            )
         mqc.subscribe(globaltopic + "+/set/+")
         mqc.subscribe(globaltopic + "reset-autoremove")
         if verbosity >= 2:
@@ -808,71 +905,126 @@ def loghandler(mgc, userdata, level, buf):
     if verbosity >= 4:
         print(f"MQTT LOG:{buf}")
 
+
 def main():
     global parser
     global args
-    global verbosity 
+    global verbosity
     global addToHass
     global loopBreak
     global globaltopic
     global control
 
-    parser = argparse.ArgumentParser(description='Bridge between ModBus and MQTT')
-    parser.add_argument('--mqtt-host', default='localhost',
-                        help='MQTT server address. Defaults to "localhost"')
-    parser.add_argument('--mqtt-port', default=None, type=int,
-                        help='Defaults to 8883 for TLS or 1883 for non-TLS')
-    parser.add_argument('--mqtt-topic', default='modbus/',
-                        help='Topic prefix to be used for subscribing/publishing. \
-                            Defaults to "modbus/"')
-    parser.add_argument('--mqtt-user', default=None,
-                        help='Username for authentication (optional)')
-    parser.add_argument('--mqtt-pass', default="",
-                        help='Password for authentication (optional)')
-    parser.add_argument('--mqtt-use-tls', action='store_true',
-                        help='Use TLS')
-    parser.add_argument('--mqtt-insecure', action='store_true',
-                        help='Use TLS without providing certificates')
-    parser.add_argument('--mqtt-cacerts', default=None,
-                        help="Path to keychain including ")
-    parser.add_argument('--mqtt-tls-version', default=None,
-                        help='TLS protocol version, can be one of tlsv1.2 tlsv1.1 \
-                            or tlsv1')
-    parser.add_argument('--rtu',
-                        help='pyserial URL (or port name) for RTU serial port')
-    parser.add_argument('--rtu-baud', default='19200', type=int,
-                        help='Baud rate for serial port. Defaults to 19200')
-    parser.add_argument('--rtu-parity', default='even',
-                        choices=['even', 'odd', 'none'],
-                        help='Parity for serial port. Defaults to even')
-    parser.add_argument('--tcp', help='Act as a Modbus TCP master, connecting to \
-                                    host TCP')
-    parser.add_argument('--tcp-port', default='502', type=int,
-                        help='Port for MODBUS TCP. Defaults to 502')
-    parser.add_argument('--set-modbus-timeout', default='1', type=float,
-                        help='Response time-out for MODBUS devices')
-    parser.add_argument('--config', required=True,
-                        help='Configuration file. Required!')
-    parser.add_argument('--verbosity', default='3', type=int,
-                        help='Verbose level, 0=silent, 1=errors only, \
-                            2=connections, 3=mb writes, 4=all')
-    parser.add_argument('--autoremove', action='store_true',
-                        help='Automatically remove poller if modbus communication \
+    parser = argparse.ArgumentParser(description="Bridge between ModBus and MQTT")
+    parser.add_argument(
+        "--mqtt-host",
+        default="localhost",
+        help='MQTT server address. Defaults to "localhost"',
+    )
+    parser.add_argument(
+        "--mqtt-port",
+        default=None,
+        type=int,
+        help="Defaults to 8883 for TLS or 1883 for non-TLS",
+    )
+    parser.add_argument(
+        "--mqtt-topic",
+        default="modbus/",
+        help='Topic prefix to be used for subscribing/publishing. \
+                            Defaults to "modbus/"',
+    )
+    parser.add_argument(
+        "--mqtt-user", default=None, help="Username for authentication (optional)"
+    )
+    parser.add_argument(
+        "--mqtt-pass", default="", help="Password for authentication (optional)"
+    )
+    parser.add_argument("--mqtt-use-tls", action="store_true", help="Use TLS")
+    parser.add_argument(
+        "--mqtt-insecure",
+        action="store_true",
+        help="Use TLS without providing certificates",
+    )
+    parser.add_argument(
+        "--mqtt-cacerts", default=None, help="Path to keychain including "
+    )
+    parser.add_argument(
+        "--mqtt-tls-version",
+        default=None,
+        help="TLS protocol version, can be one of tlsv1.2 tlsv1.1 \
+                            or tlsv1",
+    )
+    parser.add_argument("--rtu", help="pyserial URL (or port name) for RTU serial port")
+    parser.add_argument(
+        "--rtu-baud",
+        default="19200",
+        type=int,
+        help="Baud rate for serial port. Defaults to 19200",
+    )
+    parser.add_argument(
+        "--rtu-parity",
+        default="even",
+        choices=["even", "odd", "none"],
+        help="Parity for serial port. Defaults to even",
+    )
+    parser.add_argument(
+        "--tcp",
+        help="Act as a Modbus TCP master, connecting to \
+                                    host TCP",
+    )
+    parser.add_argument(
+        "--tcp-port",
+        default="502",
+        type=int,
+        help="Port for MODBUS TCP. Defaults to 502",
+    )
+    parser.add_argument(
+        "--set-modbus-timeout",
+        default="1",
+        type=float,
+        help="Response time-out for MODBUS devices",
+    )
+    parser.add_argument("--config", required=True, help="Configuration file. Required!")
+    parser.add_argument(
+        "--verbosity",
+        default="3",
+        type=int,
+        help="Verbose level, 0=silent, 1=errors only, \
+                            2=connections, 3=mb writes, 4=all",
+    )
+    parser.add_argument(
+        "--autoremove",
+        action="store_true",
+        help='Automatically remove poller if modbus communication \
                             has failed three times. Removed pollers can be \
                             reactivated by sending "True" or "1" to topic \
-                            modbus/reset-autoremove')
-    parser.add_argument('--add-to-homeassistant', action='store_true',
-                        help='Add devices to Home Assistant using \
-                            Home Assistant\'s MQTT-Discovery')
-    parser.add_argument('--always-publish', action='store_true',
-                        help='Always publish values, even if they did not change.')
-    parser.add_argument('--set-loop-break', default='0.01', type=float,
-                        help='Set pause in main polling loop. Defaults to 10ms.')
-    parser.add_argument('--diagnostics-rate', default='0', type=int,
-                        help='Time in seconds after which for each device \
+                            modbus/reset-autoremove',
+    )
+    parser.add_argument(
+        "--add-to-homeassistant",
+        action="store_true",
+        help="Add devices to Home Assistant using \
+                            Home Assistant's MQTT-Discovery",
+    )
+    parser.add_argument(
+        "--always-publish",
+        action="store_true",
+        help="Always publish values, even if they did not change.",
+    )
+    parser.add_argument(
+        "--set-loop-break",
+        default="0.01",
+        type=float,
+        help="Set pause in main polling loop. Defaults to 10ms.",
+    )
+    parser.add_argument(
+        "--diagnostics-rate",
+        default="0",
+        type=int,
+        help="Time in seconds after which for each device \
                             diagnostics are published via mqtt. Set to sth. \
-                            like 600 (= every 10 minutes) or so.')
-
+                            like 600 (= every 10 minutes) or so.",
+    )
 
     control = Control()
     signal.signal(signal.SIGINT, signal_handler)
@@ -882,19 +1034,23 @@ def main():
     loopBreak = args.set_loop_break
     if loopBreak == 0:
         loopBreak = 0.01
-        print("ERROR: Loop break must not be 0! Using default \
-    value (0.01) instead.")
+        print(
+            "ERROR: Loop break must not be 0! Using default \
+    value (0.01) instead."
+        )
     addToHass = False
     addToHass = args.add_to_homeassistant
-    
+
     globaltopic = args.mqtt_topic
 
     if not globaltopic.endswith("/"):
         globaltopic += "/"
 
     if verbosity >= 0:
-        print(f"Starting spiciermodbus2mqtt V{__version__} with topic \
-    prefix \"{globaltopic}\"")
+        print(
+            f'Starting spiciermodbus2mqtt V{__version__} with topic \
+    prefix "{globaltopic}"'
+        )
 
     # type, topic, slaveid,  ref,           size, functioncode, rate
     # type, topic, reference, rw, interpretation,      scaling,
@@ -919,8 +1075,10 @@ def main():
                     if size > 123:
                         currentPoller = None
                         if verbosity >= 1:
-                            print(f'Too many registers (max. 123). Ignoring poller \
-    {row["topic"]}.')
+                            print(
+                                f'Too many registers (max. 123). Ignoring poller \
+    {row["topic"]}.'
+                            )
                         continue
                 elif row["col5"] == "coil":
                     functioncode = 1
@@ -930,8 +1088,10 @@ def main():
                     if size > 2000:
                         currentPoller = None
                         if verbosity >= 1:
-                            print(f'Too many coils (max. 2000). Ignoring poller \
-    {row["topic"]}.')
+                            print(
+                                f'Too many coils (max. 2000). Ignoring poller \
+    {row["topic"]}.'
+                            )
                         continue
                 elif row["col5"] == "input_register":
                     functioncode = 4
@@ -939,8 +1099,10 @@ def main():
                     if size > 123:
                         currentPoller = None
                         if verbosity >= 1:
-                            print(f'Too many registers (max. 123). Ignoring poller \
-    {row["topic"]}.')
+                            print(
+                                f'Too many registers (max. 123). Ignoring poller \
+    {row["topic"]}.'
+                            )
                         continue
                 elif row["col5"] == "input_status":
                     functioncode = 2
@@ -948,24 +1110,36 @@ def main():
                     if size > 2000:
                         currentPoller = None
                         if verbosity >= 1:
-                            print(f'Too many inputs (max. 2000). Ignoring poller \
-    {row["topic"]}.')
+                            print(
+                                f'Too many inputs (max. 2000). Ignoring poller \
+    {row["topic"]}.'
+                            )
                         continue
 
                 else:
-                    print(f'Unknown function code ({row["col5"]}) ignoring poller \
-    {row["topic"]}.')
+                    print(
+                        f'Unknown function code ({row["col5"]}) ignoring poller \
+    {row["topic"]}.'
+                    )
                     currentPoller = None
                     continue
-                currentPoller = Poller(row["topic"], rate, slaveid, functioncode,
-                                    reference, size, dataType)
+                currentPoller = Poller(
+                    row["topic"], rate, slaveid, functioncode, reference, size, dataType
+                )
                 pollers.append(currentPoller)
                 continue
             elif row["type"] == "reference" or row["type"] == "ref":
                 if currentPoller is not None:
                     currentPoller.addReference(
-                        Reference(row["topic"], row["col2"], row["col4"],
-                                row["col3"], currentPoller, row["col5"]))
+                        Reference(
+                            row["topic"],
+                            row["col2"],
+                            row["col4"],
+                            row["col3"],
+                            currentPoller,
+                            row["col5"],
+                        )
+                    )
                 else:
                     print(f'No poller for reference {row["topic"]}.')
 
@@ -979,27 +1153,33 @@ def main():
         if args.rtu_parity == "even":
             parity = "E"
 
-        master = SerialModbusClient(method="rtu", port=args.rtu,
-                                    stopbits=1, bytesize=8,
-                                    parity=parity, baudrate=int(args.rtu_baud),
-                                    timeout=args.set_modbus_timeout)
+        master = SerialModbusClient(
+            method="rtu",
+            port=args.rtu,
+            stopbits=1,
+            bytesize=8,
+            parity=parity,
+            baudrate=int(args.rtu_baud),
+            timeout=args.set_modbus_timeout,
+        )
     elif args.tcp:
-        master = TCPModbusClient(args.tcp, args.tcp_port, client_id="modbus2mqtt",
-                                clean_session=False)
+        master = TCPModbusClient(
+            args.tcp, args.tcp_port, client_id="modbus2mqtt", clean_session=False
+        )
     else:
         print("You must specify a modbus access method, either --rtu or --tcp")
         return 1
-    
+
     # Setup MQTT Broker
     global mqtt_port
     mqtt_port = args.mqtt_port
-    
+
     if mqtt_port is None:
         if args.mqtt_use_tls:
             mqtt_port = 8883
         else:
             mqtt_port = 1883
-    
+
     clientid = globaltopic + "-" + str(time.time())
     global mqc
     mqc = mqtt.Client(client_id=clientid)
@@ -1012,7 +1192,7 @@ def main():
     mqc.initial_connection_made = False
     if args.mqtt_user or args.mqtt_pass:
         mqc.username_pw_set(args.mqtt_user, args.mqtt_pass)
-    
+
     if args.mqtt_use_tls:
         if args.mqtt_tls_version == "tlsv1.2":
             tls_version = ssl.PROTOCOL_TLSv1_2
@@ -1026,23 +1206,26 @@ def main():
             if verbosity >= 2:
                 print("Unknown TLS version - ignoring")
             tls_version = None
-    
+
         if args.mqtt_insecure:
             cert_regs = ssl.CERT_NONE
         else:
             cert_regs = ssl.CERT_REQUIRED
-    
-        mqc.tls_set(ca_certs=args.mqtt_cacerts, certfile=None,
-                keyfile=None, cert_reqs=cert_regs, tls_version=tls_version)
-    
+
+        mqc.tls_set(
+            ca_certs=args.mqtt_cacerts,
+            certfile=None,
+            keyfile=None,
+            cert_reqs=cert_regs,
+            tls_version=tls_version,
+        )
+
         if args.mqtt_insecure:
             mqc.tls_insecure_set(True)
-    
 
     if len(pollers) < 1:
         print("No pollers. Exitting.")
         return 0
-    
 
     # Main Loop
     modbus_connected = False
@@ -1061,37 +1244,41 @@ def main():
                     p.failCount(p.failed)
                 if verbosity >= 1:
                     print("MODBUS connection error, trying again...")
-    
+
         if not mqc.initial_connection_attempted:
-           try:
-                print(f"Connecting to MQTT Broker: \
-{args.mqtt_host}:{mqtt_port} ...")
+            try:
+                print(
+                    f"Connecting to MQTT Broker: \
+{args.mqtt_host}:{mqtt_port} ..."
+                )
                 mqc.connect(args.mqtt_host, mqtt_port, 60)
                 # Once we have connected the mqc loop
                 # will take care of reconnections.
                 mqc.initial_connection_attempted = True
                 mqc.loop_start()
                 # Setup HomeAssistant
-                if(addToHass):
+                if addToHass:
                     adder = HassConnector(mqc, globaltopic, verbosity >= 1)
                     adder.addAll(referenceList)
                 if verbosity >= 1:
                     print("MQTT Loop started")
-           except Exception as e:
+            except Exception as e:
                 if verbosity >= 1:
-                    print(f"Socket Error connecting to MQTT broker: \
-{args.mqtt_host}:{mqtt_port}, check LAN/Internet connection, trying again ...")
+                    print(
+                        f"Socket Error connecting to MQTT broker: \
+{args.mqtt_host}:{mqtt_port}, check LAN/Internet connection, trying again ..."
+                    )
                 if verbosity >= 4:
                     print(f"Connect exception: {e}")
 
         # Don't start polling unless the initial connection to MQTT has been made,
         # no offline MQTT storage will be available until then.
-        if mqc.initial_connection_made:            
+        if mqc.initial_connection_made:
             if modbus_connected:
                 try:
                     for p in pollers:
                         p.checkPoll()
-    
+
                     for d in deviceList:
                         d.publishDiagnostics()
                     anyAct = False
@@ -1105,15 +1292,19 @@ def main():
                                 p.disabled = False
                                 p.failcounter = 0
                                 if verbosity >= 1:
-                                    print(f"Reactivated poller {p.topic} with \
-Slave-ID {p.slaveid} and functioncode {p.functioncode}.")
+                                    print(
+                                        f"Reactivated poller {p.topic} with \
+Slave-ID {p.slaveid} and functioncode {p.functioncode}."
+                                    )
                 except:
                     if verbosity >= 1:
-                        print("Exception Error when polling or publishing, trying \
-again...")
+                        print(
+                            "Exception Error when polling or publishing, trying \
+again..."
+                        )
 
         time.sleep(loopBreak)
-    
+
     master.close()
     # adder.removeAll(referenceList)
     return 1
