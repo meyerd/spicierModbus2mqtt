@@ -1,11 +1,10 @@
 spicierModbus2mqtt
 ==================
 
-Slightly modified by MacPiper <https://github.com/MacPiper>
-
 Written and (C) 2018 Max Brueggemann <mail@maxbrueggemann.de> 
 
 Contains code from modbus2mqtt, written and (C) 2015 Oliver Wagner <owagner@tellerulam.com>
+Contributions by MacPiper <https://github.com/MacPiper>
   
 Provided under the terms of the MIT license.
 
@@ -20,10 +19,11 @@ an MQTT message broker is used as the centralized message bus.
 
 Changelog
 ---------
-- version 0.6, 13. of August 2021: Add docker support and setting to publish to MQTT even when the value hasn't changed
-- Nov 29th 2020 / MacPiper: Added byte reference data types uint8LSB / uint8MSB
-- version 0.5, 21. of September 2019: print error messages in case of badly configured pollers
-- version 0.4, 25. of May 2019: When writing to a device, updated states are now published immediately, if writing was successful.
+- version 0.62,  6. of February 2022: major refactoring, project is now python module available via pip
+- version 0.6,  13. of August 2021: Add docker support and setting to publish to MQTT even when the value hasn't changed
+- version 0.51, 29. of November 2019: MacPiper: Added byte reference data types uint8LSB / uint8MSB
+- version 0.5,  21. of September 2019: print error messages in case of badly configured pollers
+- version 0.4,  25. of May 2019: When writing to a device, updated states are now published immediately, if writing was successful.
 
 Why spicier?
 ------------
@@ -56,48 +56,44 @@ There is still a lot of room for improvement! Especially in the realm of
 - maybe do not poll if the poller only has references that are write-only
 ...
 
-So be careful :-)
+So feel free to contribute!
 
-Docker usage
+Installation
 ------------
-* Build the docker container
-```
-docker build --tag="modbus2mqtt" .
-```
+run `sudo pip3 install modbus2mqtt`
 
-* Example for tcp slave, remote mqtt broker with credentials, and setting the flag to always publish even when last value hasn't changed
-```
-docker run -d --name="modbus2mqtt" \
-  -v $(pwd)/configuration.csv:/usr/src/app/configuration.csv \
-  -v /etc/localtime:/etc/localtime:ro \
-  --net=host --restart always modbus2mqtt \
-  --tcp 192.168.1.7 \
-  --config /usr/src/app/configuration.csv \
-  --mqtt-host iot.eclipse.org \
-  --mqtt-user username \
-  --mqtt-pass password \
-  --always-publish true
-```
+Without installation
+--------------------
+Requirements:
 
-Dependencies
-------------
 * python3
 * Eclipse Paho for Python - http://www.eclipse.org/paho/clients/python/
 * pymodbus - https://github.com/riptideio/pymodbus
 
-Installation of dependencies
-----------------------------
+Installation of requirements:
+
 * Install python3 and python3-pip and python3-serial (on a Debian based system something like sudo apt install python3 python3-pip python3-serial will likely get you there)
 * run pip3 install pymodbus
 * run pip3 install paho-mqtt
 
 Usage
 -----
-* example for rtu and mqtt broker on localhost: python3 modbus2mqtt.py --rtu /dev/ttyS0 --rtu-baud 38400 --rtu-parity none --mqtt-host localhost  --config testing.csv
-* example for tcp slave and mqtt broker
-    * on localhost: python3 modbus2mqtt.py --tcp localhost --config testing.csv
-    * remotely:     python3 modbus2mqtt.py --tcp 192.168.1.7 --config example.csv --mqtt-host iot.eclipse.org
+If you've installed using pip:
 
+* example for rtu and mqtt broker on localhost: `modbus2mqtt --rtu /dev/ttyS0 --rtu-baud 38400 --rtu-parity none --mqtt-host localhost  --config testing.csv`
+* example for tcp slave and mqtt broker
+    on localhost: `modbus2mqtt --tcp localhost --config testing.csv`
+    remotely: `modbus2mqtt --tcp 192.168.1.7 --config example.csv --mqtt-host iot.eclipse.org`
+
+
+If you haven't installed modbus2mqtt you can run modbus2mqtt.py from the root directory of this repo directly:
+
+* example for rtu and mqtt broker on localhost: `python3 modbus2mqtt.py --rtu /dev/ttyS0 --rtu-baud 38400 --rtu-parity none --mqtt-host localhost  --config testing.csv`
+* example for tcp slave and mqtt broker
+    on localhost: `python3 modbus2mqtt.py --tcp localhost --config testing.csv`
+    remotely:     `python3 modbus2mqtt.py --tcp 192.168.1.7 --config example.csv --mqtt-host iot.eclipse.org`
+
+For docker support see below.
      
 Configuration file
 -------------------
@@ -201,12 +197,18 @@ to a register:
 mosquitto_pub -h <mqtt broker> -t modbus/somePoller/set/someReference -m "12346"
 
 Scripts addToHomeAssistant.py and create-openhab-conf.py
-------------------------------------------------
+--------------------------------------------------------
 These scripts are not really part of this project, but I decided to include them anyway. They were written because I grew more and more frustrated with the Modbus capabilities of OpenHAB and Home Assistant.
 
 So what exactly do they do? Completely different things actually.
 
 * addToHomeAssistant.py can only be run within modbus2mqtt.py. It can be invoked by passing --add-to-homeassistant when running modbus2mqtt.py. It uses MQTT messages to add all the stuff from the .csv file to home assistant automatically. Just try it. I recommend using a non productive instance of Home Assistant for testing :-)
 
-
 * create-openhab-conf.py can be used independently. It parses the .csv file and creates configuration files (.things and .items) for OpenHAB (version 2+ only). This is of course not necessary for using spicierModbus2mqtt whit OpenHab but it removes a lot of hassle from it. I use it to create a basic working structure and then rename and rearrange the items by hand.
+
+Docker
+------
+
+spicierModbus2mqtt can be run as a docker container, using the included Dockerfile. It allows all usual configuration options, with the expectation that it's configuration is at `/app/conf/modbus2mqtt.csv`. For example:
+
+`docker build -t modbus2mqtt . && docker run -v $(pwd)/example.csv:/app/conf/modbus2mqtt.csv modbus2mqtt --tcp <modbus-tcp-host> --mqtt-host <mqtt-host>`

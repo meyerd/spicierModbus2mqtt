@@ -1,12 +1,13 @@
-FROM python:3-slim
+FROM python:alpine
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN mkdir -p /app/conf/
+RUN pip install --no-cache-dir pymodbus
+RUN pip install --no-cache-dir paho-mqtt
 
 COPY modbus2mqtt.py ./
-COPY addToHomeAssistant.py ./
+COPY modbus2mqtt modbus2mqtt/
 
-ENTRYPOINT ["python", "./modbus2mqtt.py"]
+ENTRYPOINT ["python", "-u", "./modbus2mqtt.py", "--config", "/app/conf/modbus2mqtt.csv"]
 CMD ["--help"]
