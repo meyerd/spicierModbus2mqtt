@@ -53,6 +53,7 @@ from .addToHomeAssistant import HassConnector
 
 from pymodbus.client.sync import ModbusSerialClient as SerialModbusClient
 from pymodbus.client.sync import ModbusTcpClient as TCPModbusClient
+from pymodbus.payload import BinaryPayloadBuilder
 
 __version__ = "0.62"
 
@@ -374,11 +375,11 @@ class dataTypes:
             self.combine = self.combineString
             self.stringLength = length
             self.regAmount = int(length / 2)
-        elif conf == "int32LE":
+        elif conf == "int32LE" or conf == "acc32":
             self.parse = self.parseint32LE
             self.combine = self.combineint32LE
             self.regAmount = 2
-        elif conf == "int32BE" or conf == "acc32":
+        elif conf == "int32BE":
             self.regAmount = 2
             self.parse = self.parseint32BE
             self.combine = self.combineint32BE
@@ -483,6 +484,7 @@ class dataTypes:
         return struct.pack(">i", msg)
 
     def combineint32BE(self, val):
+        print(f"val: {val}")
         out = str(
             struct.unpack("=i", struct.pack("=i", int(val[1]) << 16 | int(val[0])))[0]
         )
@@ -542,6 +544,7 @@ class dataTypes:
         return out
 
     def parseuint64LE(self, msg):
+        # TODO: should return list of bytes
         return struct.pack("<Q", msg)
 
     def combineuint64LE(self, val):
@@ -560,6 +563,7 @@ class dataTypes:
         return out
 
     def parseuint64BE(self, msg):
+        # TODO: should return list of bytes
         return struct.pack(">Q", msg)
 
     def combineuint64BE(self, val):
@@ -629,16 +633,12 @@ class dataTypes:
         return self.rawvalue >> 8
 
     def parsefloat32LE(self, msg):
-        try:
-            out = struct.pack("<f", msg)
-            # value=int(msg)
-            # if value > 4294967295 or value < 0:
-            #     out = None
-            # else:
-            #     out = [int(value & 0x0000FFFF),int(value >> 16)]
-        except:
-            out = None
-        return out
+        val = float(msg)
+        builder = BinaryPayloadBuilder(byteorder='<',
+                                       wordorder='<')
+        builder.add_32bit_float(val)
+        payload = builder.build()
+        return [int.from_bytes(p, byteorder='big') for p in payload]
 
     def combinefloat32LE(self, val):
         out = str(
@@ -647,8 +647,12 @@ class dataTypes:
         return out
 
     def parsefloat32BE(self, msg):
-        out = struct.pack(">f", msg)
-        return out
+        val = float(msg)
+        builder = BinaryPayloadBuilder(byteorder='>',
+                                       wordorder='<')
+        builder.add_32bit_float(val)
+        payload = builder.build()
+        return [int.from_bytes(p, byteorder='big') for p in payload]
 
     def combinefloat32BE(self, val):
         out = str(
@@ -796,6 +800,9 @@ def messagehandler(mqc, userdata, msg):
     if myRef.writefunctioncode == 6 or myRef.writefunctioncode == 16:
         value = myRef.dtype.parse(str(payload))
         if value is not None:
+            # if myRef.scale:
+            #     # reverse scale if required
+            #     value = type(value)(value / myRef.scale)
             result = master.write_registers(
                 int(myRef.reference), value, unit=myRef.device.slaveid
             )
