@@ -256,11 +256,11 @@ class Poller:
                                 print(f"value parsed: {val}")
                             continue
                 else:
-                    for p in pollers:
-                        p.failed = True
-                        if p.failcounter < 3:
-                            p.failcounter = 3
-                        p.failCount(p.failed)
+                    # for p in pollers:
+                    #     p.failed = True
+                    #     if p.failcounter < 3:
+                    #         p.failcounter = 3
+                    #     p.failCount(p.failed)
                     if verbosity >= 1:
                         print(
                             f"Slave device {self.slaveid} responded with error code: {result.function_code}"
@@ -484,7 +484,7 @@ class dataTypes:
         return struct.pack(">i", msg)
 
     def combineint32BE(self, val):
-        print(f"val: {val}")
+        # print(f"val: {val}")
         out = str(
             struct.unpack("=i", struct.pack("=i", int(val[1]) << 16 | int(val[0])))[0]
         )
@@ -800,9 +800,9 @@ def messagehandler(mqc, userdata, msg):
     if myRef.writefunctioncode == 6 or myRef.writefunctioncode == 16:
         value = myRef.dtype.parse(str(payload))
         if value is not None:
-            # if myRef.scale:
-            #     # reverse scale if required
-            #     value = type(value)(value / myRef.scale)
+            if myRef.scale:
+                # reverse scale if required
+                value = type(value)(value / myRef.scale)
             result = master.write_registers(
                 int(myRef.reference), value, unit=myRef.device.slaveid
             )
